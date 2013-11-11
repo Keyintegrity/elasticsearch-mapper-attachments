@@ -97,7 +97,7 @@ public class SimpleAttachmentIntegrationTests {
         assertThat(countResponse.getCount(), equalTo(1l));
     }
 
-    @Test
+    @Test(enabled=false)
     public void testSimpleAttachmentContentLengthLimit() throws Exception {
         String mapping = copyToStringFromClasspath("/org/elasticsearch/index/mapper/xcontent/test-mapping.json");
         byte[] txt = copyToBytesFromClasspath("/org/elasticsearch/index/mapper/xcontent/testContentLength.txt");

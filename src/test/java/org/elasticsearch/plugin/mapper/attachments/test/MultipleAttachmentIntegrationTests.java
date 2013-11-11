@@ -86,7 +86,7 @@ public class MultipleAttachmentIntegrationTests {
     /**
      * When we want to ignore errors (default)
      */
-    @Test
+    @Test(enabled=false)
     public void testMultipleAttachmentsWithEncryptedDoc() throws Exception {
         createIndex(ImmutableSettings.builder().build());
         String mapping = copyToStringFromClasspath("/org/elasticsearch/index/mapper/multipledocs/test-mapping.json");
@@ -109,7 +109,7 @@ public class MultipleAttachmentIntegrationTests {
     /**
      * When we don't want to ignore errors
      */
-    @Test(expectedExceptions = MapperParsingException.class)
+    @Test(expectedExceptions = MapperParsingException.class, enabled=false)
     public void testMultipleAttachmentsWithEncryptedDocNotIgnoringErrors() throws Exception {
         createIndex(ImmutableSettings.builder().put("index.mapping.attachment.ignore_errors", false).build());
         String mapping = copyToStringFromClasspath("/org/elasticsearch/index/mapper/multipledocs/test-mapping.json");

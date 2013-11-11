@@ -1,0 +1,80 @@
+{
+   "_id": "0310200000313000882",
+   "_rev": "7-a7a246104a9359225876294d5e5c16e0",
+   "docs": [
+       {
+           "status": "valid",
+           "adding_date": "2013-09-21T21:26:50.174606",
+           "our_date": "2013-10-13",
+           "url": "http://zakupki.gov.ru/pgz/documentdownload?documentId=120224836",
+           "file_name": "конкурсная документация.doc",
+           "our_url": "61/61a24aecb376a9104c6fd0769ca4da78",
+           "change_status_date": "2013-09-21T21:26:50.174606",
+           "content": "not implemented",
+           "file_description": "конкурсная документация",
+           "sid": "120224836",
+           "added_on_stage": "notification"
+       },
+       {
+           "status": "valid",
+           "adding_date": "2013-09-21T21:26:50.174633",
+           "our_date": "2013-10-13",
+           "url": "http://zakupki.gov.ru/pgz/documentdownload?documentId=120225327",
+           "file_name": "Договор(выполнение работ).doc",
+           "our_url": "d2/d29cd33cf6272abdebb181cad87785bc",
+           "change_status_date": "2013-09-21T21:26:50.174633",
+           "content": "not implemented",
+           "file_description": "Договор(выполнение работ)",
+           "sid": "120225327",
+           "added_on_stage": "notification"
+       },
+       {
+           "status": "valid",
+           "adding_date": "2013-09-21T21:26:50.174642",
+           "our_date": "2013-10-13",
+           "url": "http://zakupki.gov.ru/pgz/documentdownload?documentId=120224849",
+           "file_name": "сметы ПИР прав берег Ардон.zip",
+           "our_url": "5b/5bb9f19f655c5f915745b25875569e6b",
+           "change_status_date": "2013-09-21T21:26:50.174642",
+           "content": "not implemented",
+           "file_description": "сметы ПИР прав берег Ардон",
+           "sid": "120224849",
+           "added_on_stage": "notification"
+       },
+       {
+           "status": "valid",
+           "adding_date": "2013-09-21T21:26:50.174650",
+           "our_date": "2013-10-13",
+           "url": "http://zakupki.gov.ru/pgz/documentdownload?documentId=120224906",
+           "file_name": "задание на проектирование жб дамба выше 6 моста.doc",
+           "our_url": "80/8085f04c58dab1ee64b1c73ffa870d07",
+           "change_status_date": "2013-09-21T21:26:50.174650",
+           "content": "not implemented",
+           "file_description": "задание на проектирование жб дамба выше 6 моста",
+           "sid": "120224906",
+           "added_on_stage": "notification"
+       },
+       {
+           "status": "valid",
+           "adding_date": "2013-10-24T08:53:22.057240",
+           "url": "http://zakupki.gov.ru/pgz/documentdownload?documentId=123821990",
+           "file_name": "23.10.2013.pdf",
+           "change_status_date": "2013-10-24T08:53:22.057240",
+           "content": "not implemented",
+           "file_description": "23.10.2013",
+           "sid": "123821990",
+           "added_on_stage": "protocol"
+       },
+       {
+           "content": "not implemented",
+           "status": "valid",
+           "adding_date": "2013-10-29T09:07:10.285737",
+           "file_description": "28.10.2013",
+           "sid": "124333461",
+           "url": "http://zakupki.gov.ru/pgz/documentdownload?documentId=124333461",
+           "file_name": "28.10.2013.pdf",
+           "change_status_date": "2013-10-29T09:07:10.285737",
+           "added_on_stage": "protocol"
+       }
+   ]
+}

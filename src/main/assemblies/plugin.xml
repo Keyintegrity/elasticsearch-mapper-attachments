@@ -22,5 +22,13 @@
                 <include>org.apache.tika:tika-parsers</include>
             </includes>
         </dependencySet>
+        <dependencySet>
+            <outputDirectory>/</outputDirectory>
+            <useProjectArtifact>true</useProjectArtifact>
+            <useTransitiveFiltering>true</useTransitiveFiltering>
+            <includes>
+                <include>commons-io:commons-io</include>
+            </includes>
+        </dependencySet>
     </dependencySets>
 </assembly>

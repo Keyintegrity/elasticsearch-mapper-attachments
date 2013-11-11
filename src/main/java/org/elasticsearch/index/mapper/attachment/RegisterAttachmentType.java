@@ -36,5 +36,6 @@ public class RegisterAttachmentType extends AbstractIndexComponent {
         super(index, indexSettings);
 
         mapperService.documentMapperParser().putTypeParser("attachment", new AttachmentMapper.TypeParser());
+        mapperService.documentMapperParser().putTypeParser("bigstring", new BigStringFieldMapper.TypeParser());
     }
 }

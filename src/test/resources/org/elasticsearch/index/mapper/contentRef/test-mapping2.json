@@ -1,0 +1,20 @@
+{
+    "tenderdoc_index": {
+        "dynamic": false,
+        "properties": {
+            "docs": {
+                "type": "nested",
+                "dynamic": false,
+                "properties": {
+                    "status": {"type": "string"},
+                    "adding_date": {"type": "date"},
+                    "file_description": {"type": "string"},
+                    "sid": {"type": "string"},
+                    "url": {"type": "string"},
+                    "file_name": {"type": "string"},
+                    "our_url": {"type": "attachment", "contentRefRoot":"./org/elasticsearch/index/mapper/contentRef/files/"}
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,10 @@
+{
+    "person":{
+        "properties":{
+            "our_url":{
+                "type":"attachment",
+                "contentRefRoot":"./org/elasticsearch/index/mapper/contentRef/files/"
+            }
+        }
+    }
+}

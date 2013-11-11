@@ -50,7 +50,7 @@ public class SimpleAttachmentMapperTests {
         mapperParser.putTypeParser(AttachmentMapper.CONTENT_TYPE, new AttachmentMapper.TypeParser());
     }
 
-    @Test
+    @Test(enabled=false)
     public void testSimpleMappings() throws Exception {
         String mapping = copyToStringFromClasspath("/org/elasticsearch/index/mapper/xcontent/test-mapping.json");
         DocumentMapper docMapper = mapperParser.parse(mapping);

@@ -19,24 +19,46 @@
 
 package org.elasticsearch.index.mapper.attachment;
 
+import static org.elasticsearch.index.mapper.MapperBuilders.dateField;
+import static org.elasticsearch.index.mapper.MapperBuilders.integerField;
+import static org.elasticsearch.index.mapper.MapperBuilders.stringField;
+import static org.elasticsearch.index.mapper.attachment.MapperBuilders.bigStringField;
+import static org.elasticsearch.index.mapper.core.TypeParsers.parsePathType;
+
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URISyntaxException;
+import java.util.Map;
+
+import org.apache.commons.io.output.StringBuilderWriter;
+import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
-import org.elasticsearch.common.io.stream.BytesStreamInput;
+import org.apache.tika.parser.AutoDetectParser;
+import org.apache.tika.parser.Parser;
+import org.apache.tika.parser.ParserDecorator;
+import org.apache.tika.sax.BodyContentHandler;
+import org.apache.tika.sax.WriteOutContentHandler;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
-import org.elasticsearch.index.mapper.*;
+import org.elasticsearch.index.mapper.ContentPath;
+import org.elasticsearch.index.mapper.FieldMapperListener;
+import org.elasticsearch.index.mapper.Mapper;
+import org.elasticsearch.index.mapper.MapperParsingException;
+import org.elasticsearch.index.mapper.MergeContext;
+import org.elasticsearch.index.mapper.MergeMappingException;
+import org.elasticsearch.index.mapper.ObjectMapperListener;
+import org.elasticsearch.index.mapper.ParseContext;
 import org.elasticsearch.index.mapper.core.DateFieldMapper;
 import org.elasticsearch.index.mapper.core.IntegerFieldMapper;
 import org.elasticsearch.index.mapper.core.StringFieldMapper;
 import org.elasticsearch.index.mapper.multifield.MultiFieldMapper;
-
-import java.io.IOException;
-import java.util.Map;
-
-import static org.elasticsearch.index.mapper.MapperBuilders.*;
-import static org.elasticsearch.index.mapper.core.TypeParsers.parsePathType;
-import static org.elasticsearch.plugin.mapper.attachments.tika.TikaInstance.tika;
+import org.xml.sax.ContentHandler;
+import org.xml.sax.SAXException;
 
 /**
  * <pre>
@@ -59,7 +81,44 @@ import static org.elasticsearch.plugin.mapper.attachments.tika.TikaInstance.tika
  */
 public class AttachmentMapper implements Mapper {
 
-    private static ESLogger logger = ESLoggerFactory.getLogger(AttachmentMapper.class.getName());
+    private class RecursiveMetadataParser extends ParserDecorator {
+		private static final long serialVersionUID = -8317176389312877060L;
+		private ParseContext indexContext;
+		private int indexedChars;
+		private String indexName;
+
+		public RecursiveMetadataParser(Parser parser, ParseContext context, int indexedChars, String name) {
+			super(parser);
+			this.indexContext = context;
+			this.indexedChars = indexedChars;
+			indexName = name;
+		}
+
+		@Override
+		public void parse(InputStream stream, ContentHandler ignored,
+				Metadata metadata, org.apache.tika.parser.ParseContext context)
+				throws IOException, SAXException, TikaException {
+			StringBuilder contentData = new StringBuilder(1024);
+	        WriteOutContentHandler handler = new WriteOutContentHandler(new StringBuilderWriter(contentData), indexedChars);
+			try {
+				super.parse(stream, new BodyContentHandler(handler), metadata, context);
+			} catch (Throwable e) {
+				if (!handler.isWriteLimitReached(e)) {
+		            // #18: we could ignore errors when Tika does not parse data
+		            if (!ignoreErrors) throw new MapperParsingException("Failed to extract text for [" + indexName + "]", e);
+		            return;
+				}
+			}
+//			System.out.println("metadata:" + metadata);
+//			System.out.println("contentData:" + contentData.length());
+			if (contentData.length() > 0) {
+				indexContext.externalValue(contentData);
+				contentMapper.parse(indexContext);
+			}
+		}
+	}
+
+	private static ESLogger logger = ESLoggerFactory.getLogger(AttachmentMapper.class.getName());
 
     public static final String CONTENT_TYPE = "attachment";
 
@@ -74,6 +133,8 @@ public class AttachmentMapper implements Mapper {
         private Integer defaultIndexedChars = null;
 
         private Boolean ignoreErrors = null;
+
+        private String contentRefRoot = null;
 
         private Mapper.Builder contentBuilder;
 
@@ -94,7 +155,7 @@ public class AttachmentMapper implements Mapper {
         public Builder(String name) {
             super(name);
             this.builder = this;
-            this.contentBuilder = stringField(name);
+            this.contentBuilder = bigStringField(name);
         }
 
         public Builder pathType(ContentPath.Type pathType) {
@@ -141,9 +202,16 @@ public class AttachmentMapper implements Mapper {
             this.contentLengthBuilder = contentType;
             return this;
         }
+        
+		public Builder contentRefRoot(String contentRefRoot) {
+            this.contentRefRoot = contentRefRoot;
+            return this;
+		}
+
 
         @Override
         public AttachmentMapper build(BuilderContext context) {
+            //logger.info("Builder.build " + contentRefRoot + " " + this);
             ContentPath.Type origPathType = context.path().pathType();
             context.path().pathType(pathType);
 
@@ -177,7 +245,7 @@ public class AttachmentMapper implements Mapper {
                 ignoreErrors = Boolean.TRUE;
             }
 
-            return new AttachmentMapper(name, pathType, defaultIndexedChars, ignoreErrors, contentMapper, dateMapper, titleMapper, nameMapper, authorMapper, keywordsMapper, contentTypeMapper, contentLength);
+            return new AttachmentMapper(name, pathType, defaultIndexedChars, ignoreErrors, contentRefRoot, contentMapper, dateMapper, titleMapper, nameMapper, authorMapper, keywordsMapper, contentTypeMapper, contentLength);
         }
     }
 
@@ -208,6 +276,7 @@ public class AttachmentMapper implements Mapper {
         @Override
         public Mapper.Builder parse(String name, Map<String, Object> node, ParserContext parserContext) throws MapperParsingException {
             AttachmentMapper.Builder builder = new AttachmentMapper.Builder(name);
+            //logger.info("TypeParser.parse " + name + node);
 
             for (Map.Entry<String, Object> entry : node.entrySet()) {
                 String fieldName = entry.getKey();
@@ -235,7 +304,7 @@ public class AttachmentMapper implements Mapper {
 
                         if (name.equals(propName)) {
                             // that is the content
-                            builder.content(parserContext.typeParser(isMultifield? MultiFieldMapper.CONTENT_TYPE:StringFieldMapper.CONTENT_TYPE).parse(name, (Map<String, Object>) propNode, parserContext));
+                            builder.content(parserContext.typeParser(isMultifield? MultiFieldMapper.CONTENT_TYPE:BigStringFieldMapper.CONTENT_TYPE).parse(name, (Map<String, Object>) propNode, parserContext));
                         } else if ("date".equals(propName)) {
                             // If a specific format is already defined here, we should use it
                             builder.date(parserContext.typeParser(isMultifield ? MultiFieldMapper.CONTENT_TYPE : isString ? StringFieldMapper.CONTENT_TYPE : DateFieldMapper.CONTENT_TYPE).parse("date", (Map<String, Object>) propNode, parserContext));
@@ -253,6 +322,25 @@ public class AttachmentMapper implements Mapper {
                             builder.contentLength(parserContext.typeParser(isMultifield? MultiFieldMapper.CONTENT_TYPE: IntegerFieldMapper.CONTENT_TYPE).parse("content_length", (Map<String, Object>) propNode, parserContext));
                         }
                     }
+                } else if (fieldName.equals("contentRefRoot")) {
+                	String contentRefRoot = (String)fieldNode;
+                	if (contentRefRoot != null) {
+	                	File contentRefRootFile = new File(contentRefRoot);
+	                	if (!contentRefRootFile.isAbsolute()) {
+	                		try {
+	                			contentRefRootFile = new File(this.getClass().getClassLoader().getResource(contentRefRoot).toURI());
+							} catch (URISyntaxException e) {
+								throw new MapperParsingException("invalid contentRefRoot", e);
+							}
+	                	}
+	                	if (!contentRefRootFile.exists()) {
+							throw new MapperParsingException("invalid contentRefRoot. '" + contentRefRootFile.getAbsolutePath() + "' does not exists.");
+	                	}
+	                	builder.contentRefRoot(contentRefRootFile.getAbsolutePath());
+                	} else {
+                		builder.contentRefRoot(contentRefRoot);
+                	}
+                    //logger.info("contentRefRoot: {}", fieldNode);
                 }
             }
 
@@ -267,6 +355,8 @@ public class AttachmentMapper implements Mapper {
     private final int defaultIndexedChars;
 
     private final boolean ignoreErrors;
+    
+    private final String contentRefRoot; 
 
     private final Mapper contentMapper;
 
@@ -284,13 +374,14 @@ public class AttachmentMapper implements Mapper {
 
     private final Mapper contentLengthMapper;
 
-    public AttachmentMapper(String name, ContentPath.Type pathType, int defaultIndexedChars, Boolean ignoreErrors, Mapper contentMapper,
+    public AttachmentMapper(String name, ContentPath.Type pathType, int defaultIndexedChars, Boolean ignoreErrors, String contentRefRoot, Mapper contentMapper,
                             Mapper dateMapper, Mapper titleMapper, Mapper nameMapper, Mapper authorMapper,
                             Mapper keywordsMapper, Mapper contentTypeMapper, Mapper contentLengthMapper) {
         this.name = name;
         this.pathType = pathType;
         this.defaultIndexedChars = defaultIndexedChars;
         this.ignoreErrors = ignoreErrors;
+		this.contentRefRoot = contentRefRoot;
         this.contentMapper = contentMapper;
         this.dateMapper = dateMapper;
         this.titleMapper = titleMapper;
@@ -305,18 +396,42 @@ public class AttachmentMapper implements Mapper {
     public String name() {
         return name;
     }
+    
+	private long sum_time = 0;
+
+	private int docs_count = 0;
+
+	private Parser rootTikaParser = new AutoDetectParser();
 
     @Override
     public void parse(ParseContext context) throws IOException {
-        byte[] content = null;
+    	long stat_time = System.nanoTime();
+        InputStream content = null;
+        long dataLength = -1;
         String contentType = null;
         int indexedChars = defaultIndexedChars;
         String name = null;
 
         XContentParser parser = context.parser();
+        //context.
         XContentParser.Token token = parser.currentToken();
         if (token == XContentParser.Token.VALUE_STRING) {
-            content = parser.binaryValue();
+            //logger.info("contentRefRoot: {}", contentRefRoot);
+        	if (contentRefRoot != null) {
+        		try {
+//        			System.out.println("fileName:" + parser.text());
+        	        //logger.info("parse " + parser.text());
+        			File file = new File(contentRefRoot, parser.text());
+        			content = new FileInputStream(file);
+        			dataLength = file.length();
+        		} catch (IOException e) {
+                    if (!ignoreErrors) throw new MapperParsingException("Failed to resolve file path [" + contentRefRoot + parser.text() + "]", e);
+                    return;
+        		}
+        	} else {
+                content = new ByteArrayInputStream(parser.binaryValue());
+                dataLength = content.available();
+			}
         } else {
             String currentFieldName = null;
             while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
@@ -324,7 +439,8 @@ public class AttachmentMapper implements Mapper {
                     currentFieldName = parser.currentName();
                 } else if (token == XContentParser.Token.VALUE_STRING) {
                     if ("content".equals(currentFieldName)) {
-                        content = parser.binaryValue();
+                        content = new ByteArrayInputStream(parser.binaryValue());
+                        dataLength = content.available();
                     } else if ("_content_type".equals(currentFieldName)) {
                         contentType = parser.text();
                     } else if ("_name".equals(currentFieldName)) {
@@ -337,10 +453,20 @@ public class AttachmentMapper implements Mapper {
                 }
             }
         }
-
         // Throw clean exception when no content is provided Fix #23
         if (content == null) {
-            throw new MapperParsingException("No content is provided.");
+        	if (contentRefRoot != null && name != null) {
+        		try {
+                    File file = new File(contentRefRoot, name);
+					content = new FileInputStream(file);
+        			dataLength = file.length();
+        		} catch (IOException e) {
+                    if (!ignoreErrors) throw new MapperParsingException("Failed to resolve file path [" + contentRefRoot + name + "]", e);
+                    return;
+        		}
+        	} else {
+                throw new MapperParsingException("No content is provided.");
+			}
         }
 
         Metadata metadata = new Metadata();
@@ -350,20 +476,31 @@ public class AttachmentMapper implements Mapper {
         if (name != null) {
             metadata.add(Metadata.RESOURCE_NAME_KEY, name);
         }
-
-        String parsedContent;
-        try {
-            // Set the maximum length of strings returned by the parseToString method, -1 sets no limit            
-            parsedContent = tika().parseToString(new BytesStreamInput(content, false), metadata, indexedChars);
-        } catch (Throwable e) {
-            // #18: we could ignore errors when Tika does not parse data
-            if (!ignoreErrors) throw new MapperParsingException("Failed to extract [" + indexedChars + "] characters of text for [" + name + "]", e);
+//        String parsedContent;
+//        try {
+//            parsedContent = tika().parseToString(content, metadata, indexedChars);
+//        } catch (Throwable e) {
+//            // #18: we could ignore errors when Tika does not parse data
+//            if (!ignoreErrors) throw new MapperParsingException("Failed to extract text for [" + name + "]", e);
+//            return;
+//        }
+		try {
+			org.apache.tika.parser.ParseContext tikaContext = new org.apache.tika.parser.ParseContext();
+			Parser tikaParser = new RecursiveMetadataParser(rootTikaParser, context, indexedChars, name);
+			tikaContext.set(Parser.class, tikaParser);
+			tikaParser.parse(content, new BodyContentHandler(), metadata, tikaContext);
+		} catch (MapperParsingException e) {
+			if (!ignoreErrors) throw e;
+			return;
+		} catch (Throwable e) {
+            if (!ignoreErrors) throw new MapperParsingException("Failed to extract text for [" + name + "]", e);
             return;
-        }
-
-        context.externalValue(parsedContent);
-        contentMapper.parse(context);
-
+		} finally {
+			content.close();
+		}
+        //logger.info("parse OK");
+//        context.externalValue(reusableContentData);
+//        contentMapper.parse(context);
 
         try {
             context.externalValue(name);
@@ -419,13 +556,18 @@ public class AttachmentMapper implements Mapper {
                 context.externalValue(metadata.get(Metadata.CONTENT_LENGTH));
             } else {
                 // Otherwise, we use our byte[] length
-                context.externalValue(content.length);
+                context.externalValue(dataLength);
             }
             contentLengthMapper.parse(context);
         } catch(MapperParsingException e){
             if (!ignoreErrors) throw e;
             if (logger.isDebugEnabled()) logger.debug("Ignoring MapperParsingException catch while parsing content_length: {}: {}", e.getMessage(), context.externalValue());
         }
+    	sum_time += System.nanoTime() - stat_time;
+    	docs_count++;
+    	if (docs_count % 100 == 0) {
+    		logger.info("parse file field: {}", docs_count/sum_time);
+    	}
     }
 
     @Override
@@ -466,6 +608,7 @@ public class AttachmentMapper implements Mapper {
         builder.startObject(name);
         builder.field("type", CONTENT_TYPE);
         builder.field("path", pathType.name().toLowerCase());
+        builder.field("contentRefRoot", contentRefRoot);
 
         builder.startObject("fields");
         contentMapper.toXContent(builder, params);
