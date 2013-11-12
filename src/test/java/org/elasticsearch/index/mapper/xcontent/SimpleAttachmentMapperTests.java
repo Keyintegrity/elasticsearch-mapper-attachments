@@ -26,6 +26,7 @@ import org.elasticsearch.index.analysis.AnalysisService;
 import org.elasticsearch.index.mapper.DocumentMapper;
 import org.elasticsearch.index.mapper.DocumentMapperParser;
 import org.elasticsearch.index.mapper.attachment.AttachmentMapper;
+import org.elasticsearch.index.mapper.attachment.BigStringFieldMapper;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -48,9 +49,10 @@ public class SimpleAttachmentMapperTests {
     public void setupMapperParser() {
         mapperParser = new DocumentMapperParser(new Index("test"), new AnalysisService(new Index("test")), null, null);
         mapperParser.putTypeParser(AttachmentMapper.CONTENT_TYPE, new AttachmentMapper.TypeParser());
+        mapperParser.putTypeParser(BigStringFieldMapper.CONTENT_TYPE, new BigStringFieldMapper.TypeParser());
     }
 
-    @Test(enabled=false)
+    @Test(enabled=true)
     public void testSimpleMappings() throws Exception {
         String mapping = copyToStringFromClasspath("/org/elasticsearch/index/mapper/xcontent/test-mapping.json");
         DocumentMapper docMapper = mapperParser.parse(mapping);

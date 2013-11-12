@@ -55,8 +55,10 @@ public class EncryptedDocMapperTest {
         assertThat(doc.get(docMapper.mappers().smartName("file2.title").mapper().names().indexName()), nullValue());
         assertThat(doc.get(docMapper.mappers().smartName("file2.author").mapper().names().indexName()), nullValue());
         assertThat(doc.get(docMapper.mappers().smartName("file2.keywords").mapper().names().indexName()), nullValue());
-        assertThat(doc.get(docMapper.mappers().smartName("file2.content_type").mapper().names().indexName()), nullValue());
-        assertThat(doc.getField(docMapper.mappers().smartName("file2.content_length").mapper().names().indexName()), nullValue());
+        //content_type set into org.apache.tika.parser.AutoDetectParser before parse content. it is not encrypted data, and we can retrieve it
+        //assertThat(doc.get(docMapper.mappers().smartName("file2.content_type").mapper().names().indexName()), nullValue());
+        //we retrive this data from bytes array of data. it is not encrypted data, and we can retrieve it
+        //assertThat(doc.getField(docMapper.mappers().smartName("file2.content_length").mapper().names().indexName()), nullValue());
     }
 
     @Test
@@ -81,8 +83,10 @@ public class EncryptedDocMapperTest {
         assertThat(doc.get(docMapper.mappers().smartName("file1.title").mapper().names().indexName()), nullValue());
         assertThat(doc.get(docMapper.mappers().smartName("file1.author").mapper().names().indexName()), nullValue());
         assertThat(doc.get(docMapper.mappers().smartName("file1.keywords").mapper().names().indexName()), nullValue());
-        assertThat(doc.get(docMapper.mappers().smartName("file1.content_type").mapper().names().indexName()), nullValue());
-        assertThat(doc.getField(docMapper.mappers().smartName("file1.content_length").mapper().names().indexName()), nullValue());
+        //content_type set into org.apache.tika.parser.AutoDetectParser before parse content. it is not encrypted data, and we can retrieve it
+        //assertThat(doc.get(docMapper.mappers().smartName("file1.content_type").mapper().names().indexName()), nullValue());
+        //we retrive this data from bytes array of data. it is not encrypted data, and we can retrieve it
+        //assertThat(doc.getField(docMapper.mappers().smartName("file1.content_length").mapper().names().indexName()), nullValue());
 
         assertThat(doc.get(docMapper.mappers().smartName("file2").mapper().names().indexName()), containsString("World"));
         assertThat(doc.get(docMapper.mappers().smartName("file2.title").mapper().names().indexName()), equalTo("Hello"));
