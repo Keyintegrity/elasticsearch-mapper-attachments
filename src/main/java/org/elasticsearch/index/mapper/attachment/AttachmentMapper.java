@@ -81,7 +81,7 @@ import org.xml.sax.SAXException;
  */
 public class AttachmentMapper implements Mapper {
 
-    private class RecursiveMetadataParser extends ParserDecorator {
+	private class RecursiveMetadataParser extends ParserDecorator {
 		private static final long serialVersionUID = -8317176389312877060L;
 		private ParseContext indexContext;
 		private int indexedChars;
@@ -421,11 +421,13 @@ public class AttachmentMapper implements Mapper {
         		try {
 //        			System.out.println("fileName:" + parser.text());
         	        //logger.info("parse " + parser.text());
-        			File file = new File(contentRefRoot, parser.text());
+        			name = parser.text();
+        			File file = new File(contentRefRoot, name);
         			content = new FileInputStream(file);
         			dataLength = file.length();
         		} catch (IOException e) {
-                    if (!ignoreErrors) throw new MapperParsingException("Failed to resolve file path [" + contentRefRoot + parser.text() + "]", e);
+                    if (!ignoreErrors) throw new MapperParsingException("Failed to resolve file path [" + contentRefRoot + "/" + name + "]", e);
+                    if (logger.isDebugEnabled()) logger.debug("Ignoring IOException catch while parsing content: {}: {}", e.getMessage(), contentRefRoot + "/" + name);
                     return;
         		}
         	} else {
@@ -461,7 +463,8 @@ public class AttachmentMapper implements Mapper {
 					content = new FileInputStream(file);
         			dataLength = file.length();
         		} catch (IOException e) {
-                    if (!ignoreErrors) throw new MapperParsingException("Failed to resolve file path [" + contentRefRoot + name + "]", e);
+                    if (!ignoreErrors) throw new MapperParsingException("Failed to resolve file path [" + contentRefRoot + "/" + name + "]", e);
+                    if (logger.isDebugEnabled()) logger.debug("Ignoring IOException catch while parsing content: {}: {}", e.getMessage(), name);
                     return;
         		}
         	} else {
@@ -491,9 +494,11 @@ public class AttachmentMapper implements Mapper {
 			tikaParser.parse(content, new BodyContentHandler(), metadata, tikaContext);
 		} catch (MapperParsingException e) {
 			if (!ignoreErrors) throw e;
+            if (logger.isDebugEnabled()) logger.debug("Ignoring MapperParsingException catch while parsing content: {}: {}", e.getMessage(), name);
 			return;
 		} catch (Throwable e) {
             if (!ignoreErrors) throw new MapperParsingException("Failed to extract text for [" + name + "]", e);
+            if (logger.isDebugEnabled()) logger.debug("Ignoring Exception catch while parsing content: {}: {}", e.getMessage(), name);
             return;
 		} finally {
 			content.close();
@@ -507,7 +512,7 @@ public class AttachmentMapper implements Mapper {
             nameMapper.parse(context);
         } catch(MapperParsingException e){
             if (!ignoreErrors) throw e;
-            if (logger.isDebugEnabled()) logger.debug("Ignoring MapperParsingException catch while parsing name: {}", e.getMessage());
+            if (logger.isDebugEnabled()) logger.debug("Ignoring MapperParsingException catch while parsing name: {}: {}", e.getMessage(), context.externalValue());
         }
 
         try {
@@ -566,7 +571,7 @@ public class AttachmentMapper implements Mapper {
     	sum_time += System.nanoTime() - stat_time;
     	docs_count++;
     	if (docs_count % 100 == 0) {
-    		logger.info("parse file field: {}", docs_count/sum_time);
+    		logger.debug("parse file field: [docs_count:{}, sum_time:{}, rate: {}", docs_count, sum_time, ((double)docs_count)/sum_time);
     	}
     }
 

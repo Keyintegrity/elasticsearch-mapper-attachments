@@ -40,6 +40,8 @@ import org.elasticsearch.index.analysis.NamedAnalyzer;
 import org.elasticsearch.index.codec.postingsformat.PostingsFormatProvider;
 import org.elasticsearch.index.fielddata.FieldDataType;
 import org.elasticsearch.index.mapper.*;
+import org.elasticsearch.index.mapper.FieldMapper.Loading;
+import org.elasticsearch.index.mapper.FieldMapper.Names;
 import org.elasticsearch.index.mapper.core.AbstractFieldMapper;
 import org.elasticsearch.index.mapper.internal.AllFieldMapper;
 import org.elasticsearch.index.similarity.SimilarityProvider;
@@ -141,7 +143,7 @@ public class BigStringFieldMapper extends AbstractFieldMapper<StringBuilder> imp
             }
             BigStringFieldMapper fieldMapper = new BigStringFieldMapper(buildNames(context),
                     boost, fieldType, nullValue, indexAnalyzer, searchAnalyzer, searchQuotedAnalyzer,
-                    positionOffsetGap, ignoreAbove, provider, similarity, fieldDataSettings);
+                    positionOffsetGap, ignoreAbove, provider, similarity, normsLoading, fieldDataSettings);
             fieldMapper.includeInAll(includeInAll);
             return fieldMapper;
         }
@@ -205,10 +207,11 @@ public class BigStringFieldMapper extends AbstractFieldMapper<StringBuilder> imp
     private int ignoreAbove;
 
     protected BigStringFieldMapper(Names names, float boost, FieldType fieldType,
-                                String nullValue, NamedAnalyzer indexAnalyzer, NamedAnalyzer searchAnalyzer,
-                                NamedAnalyzer searchQuotedAnalyzer, int positionOffsetGap, int ignoreAbove,
-                                PostingsFormatProvider postingsFormat, SimilarityProvider similarity, @Nullable Settings fieldDataSettings) {
-        super(names, boost, fieldType, indexAnalyzer, searchAnalyzer, postingsFormat, similarity, fieldDataSettings);
+            String nullValue, NamedAnalyzer indexAnalyzer, NamedAnalyzer searchAnalyzer,
+            NamedAnalyzer searchQuotedAnalyzer, int positionOffsetGap, int ignoreAbove,
+            PostingsFormatProvider postingsFormat, SimilarityProvider similarity,
+            Loading normsLoading, @Nullable Settings fieldDataSettings) {
+    	super(names, boost, fieldType, indexAnalyzer, searchAnalyzer, postingsFormat, similarity, normsLoading, fieldDataSettings);
         this.nullValue = nullValue==null ? null : new StringBuilder(nullValue);
         this.positionOffsetGap = positionOffsetGap;
         this.searchQuotedAnalyzer = searchQuotedAnalyzer != null ? searchQuotedAnalyzer : this.searchAnalyzer;
