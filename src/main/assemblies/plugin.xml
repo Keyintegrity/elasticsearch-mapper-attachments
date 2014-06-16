@@ -30,5 +30,13 @@
                 <include>commons-io:commons-io</include>
             </includes>
         </dependencySet>
+        <dependencySet>
+            <outputDirectory>/</outputDirectory>
+            <useProjectArtifact>true</useProjectArtifact>
+            <useTransitiveFiltering>true</useTransitiveFiltering>
+            <includes>
+                <include>org.apache.commons:commons-pool2</include>
+            </includes>
+        </dependencySet>
     </dependencySets>
 </assembly>

@@ -34,6 +34,11 @@ import java.net.URISyntaxException;
 import java.util.Map;
 
 import org.apache.commons.io.output.StringBuilderWriter;
+import org.apache.commons.pool2.BasePooledObjectFactory;
+import org.apache.commons.pool2.PooledObject;
+import org.apache.commons.pool2.PooledObjectFactory;
+import org.apache.commons.pool2.impl.DefaultPooledObject;
+import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
@@ -81,8 +86,31 @@ import org.xml.sax.SAXException;
  */
 public class AttachmentMapper implements Mapper {
 
+	private static final GenericObjectPool<StringBuilder> sbPool = new GenericObjectPool<StringBuilder>(new StringBuilderFactory());
+
+	private static class StringBuilderFactory extends BasePooledObjectFactory<StringBuilder> {
+
+		@Override
+		public StringBuilder create() throws Exception {
+			return new StringBuilder();
+		}
+
+		@Override
+		public PooledObject<StringBuilder> wrap(StringBuilder builder) {
+			return new DefaultPooledObject<StringBuilder>(builder);
+		}
+		
+		@Override
+		public void passivateObject(PooledObject<StringBuilder> pooledObject)
+				throws Exception {
+			pooledObject.getObject().setLength(0);
+		}
+
+	}
+
 	private class RecursiveMetadataParser extends ParserDecorator {
 		private static final long serialVersionUID = -8317176389312877060L;
+		
 		private ParseContext indexContext;
 		private int indexedChars;
 		private String indexName;
@@ -98,7 +126,14 @@ public class AttachmentMapper implements Mapper {
 		public void parse(InputStream stream, ContentHandler ignored,
 				Metadata metadata, org.apache.tika.parser.ParseContext context)
 				throws IOException, SAXException, TikaException {
-			StringBuilder contentData = new StringBuilder(1024);
+			StringBuilder contentData = null;
+			boolean isPooled = true;
+			try {
+				contentData = sbPool.borrowObject();
+			} catch (Exception e1) {
+				contentData = new StringBuilder(1024);
+				isPooled = false;
+			}
 	        WriteOutContentHandler handler = new WriteOutContentHandler(new StringBuilderWriter(contentData), indexedChars);
 			try {
 				super.parse(stream, new BodyContentHandler(handler), metadata, context);
@@ -114,6 +149,9 @@ public class AttachmentMapper implements Mapper {
 			if (contentData.length() > 0) {
 				indexContext.externalValue(contentData);
 				contentMapper.parse(indexContext);
+			}
+			if (isPooled) {
+				sbPool.returnObject(contentData);
 			}
 		}
 	}
@@ -356,7 +394,7 @@ public class AttachmentMapper implements Mapper {
 
     private final boolean ignoreErrors;
     
-    private final String contentRefRoot; 
+    private String contentRefRoot; 
 
     private final Mapper contentMapper;
 
@@ -577,7 +615,12 @@ public class AttachmentMapper implements Mapper {
 
     @Override
     public void merge(Mapper mergeWith, MergeContext mergeContext) throws MergeMappingException {
-        // ignore this for now
+    	AttachmentMapper sourceMergeWith = (AttachmentMapper) mergeWith;
+        if (!mergeContext.mergeFlags().simulate()) {
+            if (sourceMergeWith.contentRefRoot != null) {
+                this.contentRefRoot = sourceMergeWith.contentRefRoot;
+            }
+        }
     }
 
     @Override
