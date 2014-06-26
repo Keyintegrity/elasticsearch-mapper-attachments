@@ -129,7 +129,7 @@ public class AttachmentMapper implements Mapper {
 			StringBuilder contentData = null;
 			boolean isPooled = true;
 			try {
-				contentData = sbPool.borrowObject();
+				contentData = sbPool.borrowObject(1000);
 			} catch (Exception e1) {
 				contentData = new StringBuilder(1024);
 				isPooled = false;
@@ -139,6 +139,9 @@ public class AttachmentMapper implements Mapper {
 				super.parse(stream, new BodyContentHandler(handler), metadata, context);
 			} catch (Throwable e) {
 				if (!handler.isWriteLimitReached(e)) {
+					if (isPooled) {
+						sbPool.returnObject(contentData);
+					}
 		            // #18: we could ignore errors when Tika does not parse data
 		            if (!ignoreErrors) throw new MapperParsingException("Failed to extract text for [" + indexName + "]", e);
 		            return;
